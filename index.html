@@ -41,10 +41,39 @@
       // 你换成自己的LLM接口即可
       const res = await fetch("https://spark-api-open.xf-yun.com/x2/chat/completions", {
         method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [{role:"user",content:"Paraphrase this text: "+text}]
+        "header": {
+        "uid": "user_id",
+        "app_id": "4CC5779A"
+    },
+    "payload": {
+        "message": {
+            "text": [
+                {
+                    "role": "user",
+                    "content": "推荐两个适合自驾春游的景点"
+                }
+            ]
+        }
+    },
+    "parameter": {
+        "chat": {
+            "domain": "spark-x",
+            "max_tokens": 4096,
+            "presence_penalty":1,
+            "temperature":0,
+            "frequency_penalty":0.02,
+            "top_k":5,
+            "tools": [               
+                {                   
+                    "type": "web_search",                   
+                    "web_search": {                       
+                        "enable": true,     
+                        "search_mode": "normal"
+                    }
+                }
+            ]
+        }
+    }
         })
       });
       const data = await res.json();
