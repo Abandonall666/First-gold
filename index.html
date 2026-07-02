@@ -24,7 +24,7 @@
     <div class="result" id="result"></div>
   </div>
   <div class="tg">
-    Unlimited use & API Key → Telegram: <a href=" " target="_blank">@FinishNAN</a >
+    Unlimited use & API Key → Telegram: <a href=" " target="_blank">@你的TG用户名</a >
   </div>
 
   <script>
@@ -39,12 +39,13 @@
       document.getElementById("result").innerText = "Processing...";
 
       // 你换成自己的LLM接口即可
-      const res = await fetch("https://spark-api-open.xf-yun.com/x2/chat/completions", {
+      const res = await fetch("https://你的转发接口", {
         method:"POST",
-         headers:{"Content-Type":"application/json"},
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model: "gpt-3.5-turbo",
           messages: [{role:"user",content:"Paraphrase this text: "+text}]
+        })
       });
       const data = await res.json();
       let out = data.choices?.[0]?.message?.content || "Error";
@@ -54,4 +55,3 @@
   </script>
 </body>
 </html>
-
