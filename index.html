@@ -39,7 +39,7 @@
       document.getElementById("result").innerText = "Processing...";
 
       // 你换成自己的LLM接口即可
-      const res = await fetch("https://first-gold-kappa.vercel.app/", {
+      const res = await fetch("wss://spark-api.xf-yun.com/x2", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
