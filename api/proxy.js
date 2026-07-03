@@ -11,9 +11,9 @@ export default async function handler(req, res) {
   }
 
   // ========= 替换你的讯飞密钥 =========
-  const APP_ID = "你的APPID";
-  const API_KEY = "你的API_KEY";
-  const API_SECRET = "你的API_SECRET";
+  const APP_ID = "bb443d11";
+  const API_KEY = "34ce6d0aa22e77ac66eee704ac92050b";
+  const API_SECRET = "OGEwZDAyOGJjZmJkMTczNjllZjBlOGM3";
   // ====================================
 
   // X2专属接口地址
