@@ -9,7 +9,7 @@
     .box{background:white;padding:24px;border-radius:12px;box-shadow:0 2px 10px #00000010}
     textarea{width:100%;height:180px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px}
     button{background:#007bff;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer}
-    .result{margin-top:20px;padding:16px;background:#f1f1f1;border-radius:8px;min-height:100px}
+    .result{margin-top:20px;padding:16px;background:#f1f1f1;border-radius:8px;min-height:100px;white-space:pre-wrap}
     .tg{margin-top:20px;text-align:center;color:#333}
     .tg a{color:#007bff;font-weight:bold}
     .limit{color:#666;font-size:14px;margin-bottom:10px}
@@ -18,7 +18,7 @@
 <body>
   <div class="box">
     <h2>Free AI Paraphraser | Rewrite Text</h2>
-    <p class="limit">Free daily uses, no login needed</p >
+    <p class="limit">Free daily uses, no login needed</p>
     <textarea id="input" placeholder="Paste your text here..."></textarea>
     <button onclick="rewrite()">Paraphrase</button>
     <div class="result" id="result"></div>
@@ -26,7 +26,6 @@
   <div class="tg">
     Unlimited use & API Key → Telegram: <a href=" " target="_blank">@FinishNAN</a >
   </div>
-
   <script>
     let count = 0;
     async function rewrite() {
@@ -34,27 +33,68 @@
         document.getElementById("result").innerText = "Daily limit reached. DM Telegram for unlimited.";
         return;
       }
-      let text = document.getElementById("input").value;
+      const inputDom = document.getElementById("input");
+      const resultDom = document.getElementById("result");
+      const text = inputDom.value.trim();
       if(!text) return alert("Enter text");
-      document.getElementById("result").innerText = "Processing...";
+      
+      resultDom.innerText = "";
+      let fullText = "";
 
-      // 你换成自己的LLM接口即可
-      const res = await fetch("/api/proxy", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    stream: true, // 开启打字机流式
-    messages: [
-      { role: "user", content: "你好" }
-    ]
-  })
-});
-      const data = await res.json();
-      let out = data.choices?.[0]?.message?.content || "Error";
-      document.getElementById("result").innerText = out;
-      count++;
+      try {
+        const res = await fetch("/api/proxy", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            stream: true,
+            messages: [
+              { role: "user", content: `请改写下面这段文字：${text}` }
+            ]
+          })
+        });
+
+        if (!res.ok) {
+          resultDom.innerText = `请求失败：${res.status}`;
+          return;
+        }
+
+        // 流式分段读取SSE数据流（核心修复）
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            let dataStr = line.slice(6).trim();
+            if (dataStr === "[DONE]") continue;
+            if (!dataStr) continue;
+
+            try {
+              const json = JSON.parse(dataStr);
+              // 讯飞spark-x兼容openai格式，取delta增量文字
+              const delta = json.choices?.[0]?.delta?.content || "";
+              fullText += delta;
+              resultDom.innerText = fullText;
+            } catch (e) {
+              // 解析错误直接跳过分片
+              continue;
+            }
+          }
+        }
+        count++;
+      } catch (err) {
+        resultDom.innerText = "网络异常：" + err.message;
+      }
     }
   </script>
 </body>
