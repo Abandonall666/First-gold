@@ -4,9 +4,9 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "仅POST请求" });
 
   // ========= 在这里替换你讯飞星火控制台密钥 =========
-  const APP_ID = "你的讯飞APPID";
-  const API_KEY = "你的API_KEY";
-  const API_SECRET = "你的API_SECRET";
+  const APP_ID = "bb443d11";
+  const API_KEY = "34ce6d0aa22e77ac66eee704ac92050b";
+  const API_SECRET = "OGEwZDAyOGJjZmJkMTczNjllZjBlOGM3";
   // =====================================================
 
   try {
