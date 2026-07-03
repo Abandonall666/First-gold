@@ -3,40 +3,39 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "仅支持POST请求" });
+    return res.status(405).json({ error: "仅POST访问" });
   }
 
-  // ========= 替换你的讯飞密钥 =========
-  const APP_ID = "bb443d11";
-  const API_KEY = "34ce6d0aa22e77ac66eee704ac92050b";
-  const API_SECRET = "OGEwZDAyOGJjZmJkMTczNjllZjBlOGM3";
-  // ====================================
-
-  // X2专属接口地址
-  const SPARK_URL = "https://spark-api-open.xf-yun.com/v2/chat/completions";
+  // 填写你的讯飞密钥
+  const APP_ID = "";
+  const API_KEY = "";
+  const API_SECRET = "";
+  const targetUrl = "https://spark-api-open.xf-yun.com/x2/chat/completions";
 
   try {
     const body = req.body;
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.flushHeaders();
+    // SSE强制全套头部，Vercel必须写死
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Content-Type-Options": "nosniff"
+    });
 
     const payload = {
       model: "spark-x",
       messages: body.messages,
-      stream: body.stream ?? true,
-      temperature: body.temperature || 0.7,
-      extra_body: {
-        thinking: { type: "enabled" }
-      }
+      stream: true,
+      temperature: body.temperature ?? 0.7,
+      extra_body: { thinking: { type: "disabled" } }
     };
 
-    const aiRes = await fetch(SPARK_URL, {
+    const response = await fetch(targetUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -45,24 +44,26 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload)
     });
 
-    if (!aiRes.ok) {
-      const errMsg = await aiRes.text();
-      res.write(`data: {"error":"讯飞接口异常${aiRes.status}：${errMsg}"}\n\n`);
-      return res.end();
+    if (!response.ok) {
+      res.write(`data: {"error":"讯飞接口错误${response.status}"}\n\n`);
+      res.end();
+      return;
     }
 
-    const reader = aiRes.body.getReader();
-    const decoder = new TextDecoder("utf-8", { stream: true });
+    // 逐段实时下发，不缓存，解决Vercel吞流空白
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value);
-      res.write(chunk);
+      const text = decoder.decode(value);
+      res.write(text);
     }
+    res.write("data: [DONE]\n\n");
     res.end();
 
   } catch (err) {
-    res.write(`data: {"error":"代理异常：${err.message}"}\n\n`);
+    res.write(`data: {"error":"服务异常：${err.message}"}\n\n`);
     res.end();
   }
 }
