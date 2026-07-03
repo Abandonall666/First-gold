@@ -1,32 +1,42 @@
-export default async function handler(req, res) {
+// 声明Edge运行时，修复Vercel流式吞流空白
+export const config = {
+  runtime: "edge",
+  maxDuration: 60
+};
+
+export default async function handler(req) {
+  const resHeaders = new Headers();
+  // 跨域处理
+  resHeaders.set("Access-Control-Allow-Origin", "*");
+  resHeaders.set("Access-Control-Allow-Methods", "POST,OPTIONS");
+  resHeaders.set("Access-Control-Allow-Headers", "Content-Type");
+
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.status(200).end();
-    return;
+    return new Response(null, { status: 200, headers: resHeaders });
   }
-
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "仅POST访问" });
+    return new Response(JSON.stringify({ error: "仅支持POST请求" }), {
+      status: 405,
+      headers: resHeaders
+    });
   }
 
-  // 填写你的讯飞密钥
-  const APP_ID = "bb443d11";
-  const API_KEY = "34ce6d0aa22e77ac66eee704ac92050b";
-  const API_SECRET = "OGEwZDAyOGJjZmJkMTczNjllZjBlOGM3";
+  // 从Vercel环境变量读取密钥，不要写死代码
+  const API_PASSWORD = process.env.SPARK_API_PASSWORD;
   const targetUrl = "https://spark-api-open.xf-yun.com/x2/chat/completions";
 
-  try {
-    const body = req.body;
-    // SSE强制全套头部，Vercel必须写死
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
-      "X-Content-Type-Options": "nosniff"
+  if (!API_PASSWORD) {
+    return new Response(`data: {"error":"未配置SPARK_API_PASSWORD环境变量"}\n\n`, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive"
+      }
     });
+  }
 
+  try {
+    const body = await req.json();
     const payload = {
       model: "spark-x",
       messages: body.messages,
@@ -35,35 +45,38 @@ export default async function handler(req, res) {
       extra_body: { thinking: { type: "disabled" } }
     };
 
-    const response = await fetch(targetUrl, {
+    const aiRes = await fetch(targetUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${APP_ID}:${API_KEY}:${API_SECRET}`
+        Authorization: `Bearer ${API_PASSWORD}`
       },
       body: JSON.stringify(payload)
     });
 
-    if (!response.ok) {
-      res.write(`data: {"error":"讯飞接口错误${response.status}"}\n\n`);
-      res.end();
-      return;
+    // SSE流式响应头
+    const streamHeaders = new Headers(resHeaders);
+    streamHeaders.set("Content-Type", "text/event-stream; charset=utf-8");
+    streamHeaders.set("Cache-Control", "no-cache, no-transform");
+    streamHeaders.set("Connection", "keep-alive");
+    streamHeaders.set("X-Content-Type-Options", "nosniff");
+
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      return new Response(`data: {"error":"讯飞接口${aiRes.status}：${errText}"}\n\n`, {
+        headers: streamHeaders
+      });
     }
 
-    // 逐段实时下发，不缓存，解决Vercel吞流空白
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const text = decoder.decode(value);
-      res.write(text);
-    }
-    res.write("data: [DONE]\n\n");
-    res.end();
+    // 直接透传讯飞原始流，解决空白
+    return new Response(aiRes.body, { headers: streamHeaders });
 
   } catch (err) {
-    res.write(`data: {"error":"服务异常：${err.message}"}\n\n`);
-    res.end();
+    return new Response(`data: {"error":"服务异常：${err.message}"}\n\n`, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform"
+      }
+    });
   }
 }
