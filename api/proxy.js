@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   // ====================================
 
   // X2专属接口地址
-  const SPARK_URL = "https://spark-api-open.xf-yun.com/x2/chat/completions";
+  const SPARK_URL = "https://spark-api-open.xf-yun.com/v2/chat/completions";
 
   try {
     const body = req.body;
