@@ -12,9 +12,9 @@ export default async function handler(req, res) {
   }
 
   // 填写你的讯飞密钥
-  const APP_ID = "";
-  const API_KEY = "";
-  const API_SECRET = "";
+  const APP_ID = "bb443d11";
+  const API_KEY = "34ce6d0aa22e77ac66eee704ac92050b";
+  const API_SECRET = "OGEwZDAyOGJjZmJkMTczNjllZjBlOGM3";
   const targetUrl = "https://spark-api-open.xf-yun.com/x2/chat/completions";
 
   try {
